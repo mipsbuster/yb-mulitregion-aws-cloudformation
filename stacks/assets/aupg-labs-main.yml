@@ -1,0 +1,119 @@
+---
+## Amazon Aurora PostgreSQL Immersion Day Labs
+## Main Stack which creates VPC, Cloud9 and Aurora PostgreSQL Cluster
+##
+## Changelog:
+##
+## Dependencies:
+## none
+##
+## This sample code is made available under the MIT-0 license. See the LICENSE file.
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Amazon Aurora PostgreSQL Labs Stackset
+
+## Parameters
+Parameters:
+  EnvType:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - prod
+      - dev
+    Description: Please leave default value, reserved for internal use.
+  CreateInstance:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Determines if the database instance needs to be created.
+  TemplateName:
+    Type: String
+    Default: aupg-labs
+    Description: Name used for different elements created.
+  isSecondary:
+    Default: "No"
+    Type: String
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Description: Please leave default value, reserved for internal use.
+  
+## Conditions
+Conditions:
+  isInEE:
+    !Equals [ !Ref EnvType, "prod" ]
+  isNotInEE:
+    !Equals [ !Ref EnvType, "dev" ]
+  WithInstance: !Equals [!Ref CreateInstance, "true"]
+  condIsSecondary: !Equals [ !Ref isSecondary, "Yes" ]
+
+## Resources
+Resources:
+  immdayslabsVPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://auroraworkshopassets.s3-us-west-2.amazonaws.com/templates/nested/immdayslabs-vpc.yml
+      Parameters:
+        TemplateName: !Ref TemplateName
+  immdayslabsC9Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://auroraworkshopassets.s3-us-west-2.amazonaws.com/templates/nested/immdayslabs-bastion-c9.yml
+      Parameters:
+          PubSubnetId: !GetAtt 'immdayslabsVPCStack.Outputs.PublicSubnetA'
+          TemplateName: !Ref TemplateName
+          EnvType: !Ref EnvType
+  aupglabsRDSStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://auroraworkshopassets.s3-us-west-2.amazonaws.com/templates/nested/aupg-labs-rds.yml
+      Parameters:
+          PubSubnetCidr: !GetAtt 'immdayslabsVPCStack.Outputs.PublicSubnetACidr'
+          TemplateName: !Ref TemplateName
+          CreateInstance: !Ref CreateInstance
+          isSecondary: !Ref isSecondary
+          MainVPC: !GetAtt immdayslabsVPCStack.Outputs.MainVPC
+          PrivateSubnets: !GetAtt 'immdayslabsVPCStack.Outputs.PrivateSubnets'
+  aupglabsmlstack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://auroraworkshopassets.s3-us-west-2.amazonaws.com/templates/nested/aupg-labs-ml.yml
+      
+## Outputs
+Outputs:
+  LabVPC:
+    Description: Aurora PostgreSQL Lab VPC
+    Value: !GetAtt immdayslabsVPCStack.Outputs.MainVPC
+  Cloud9URL:
+    Description: Cloud9 URL
+    Value: !GetAtt immdayslabsC9Stack.Outputs.Cloud9URL
+  DBSecGroup:
+    Description: Database Security Group
+    Value: !GetAtt aupglabsRDSStack.Outputs.dbSecGroupCluster
+  clusterEndpoint:
+    Description: Aurora Cluster Endpoint
+    Value: !If [WithInstance, !GetAtt aupglabsRDSStack.Outputs.clusterEndpoint, '']
+  readerEndpoint:
+    Description: Aurora Reader Endpoint
+    Value: !If [WithInstance, !GetAtt aupglabsRDSStack.Outputs.readerEndpoint, '']
+  Port:
+    Description: Aurora Endpoint Port
+    Value: !If [WithInstance, !GetAtt aupglabsRDSStack.Outputs.Port, '']
+  DatabaseName:
+    Description: Database Name
+    Value: !If [WithInstance, !GetAtt aupglabsRDSStack.Outputs.DatabaseName, '']
+  secretArn:
+    Description: Database Credentials Secret ARN
+    Value: !GetAtt aupglabsRDSStack.Outputs.secretArn
+  DBUsername:
+    Description: Database master username
+    Value: !GetAtt aupglabsRDSStack.Outputs.DBUsername
+  apgcustomclusterparamgroup:
+    Description: Cluster Parameter Group
+    Value: !GetAtt aupglabsRDSStack.Outputs.apgcustomclusterparamgroup
+  apgcustomdbparamgroup:
+    Description: Database Parameter Group
+    Value: !GetAtt aupglabsRDSStack.Outputs.apgcustomdbparamgroup
+

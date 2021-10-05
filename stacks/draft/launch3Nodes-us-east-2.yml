@@ -1,0 +1,265 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Template to Create an EC2 instance in a VPC
+
+Parameters:
+
+  ImageId:
+    Type: String
+    Description: 'centos 7 us-east-2 Region'
+    Default: 'ami-05aa4966b2dff91ce'
+  VpcId:
+    Type: String
+    Description: VPC id
+  SubnetId:
+    Type: String
+    Description: Subnet in which to launch an EC2 web
+  SubnetIdNodes:
+    Type: String
+    Description: Subnet in which to launch an EC2 nodes
+  PublicSubnet1CIDR:
+    Description: "Enter IP range for this public subnet 1"
+    Type: String
+  PrivateSubnet1CIDR:
+    Description: "Enter IP range for this private subnet 1"
+    Type: String
+  InstanceType:
+    Type: String
+    Description: Choosing  t2 micro because it is free
+    AllowedValues: [c5.large, t2.micro, t2.small, t2.medium, t2.large, m3.medium, m3.large,
+      m3.xlarge, m3.2xlarge, m4.large, m4.xlarge, m4.2xlarge, m4.4xlarge, m4.10xlarge,
+      c4.large, c4.xlarge, c4.2xlarge, c4.4xlarge, c4.8xlarge, c3.large, c3.xlarge,
+      c3.2xlarge, c3.4xlarge, c3.8xlarge, r3.large, r3.xlarge, r3.2xlarge, r3.4xlarge,
+      r3.8xlarge, i2.xlarge, i2.2xlarge, i2.4xlarge, i2.8xlarge, c6g.medium, c6g.large]
+    ConstraintDescription: Please choose a valid instance type.
+  SSHKeyName:
+    Description: EC2 instance type
+    Type: String
+    ConstraintDescription: Please choose a valid KeyName
+  VolumeSize:
+    Description: size of volume
+    Type: Number
+    Default: 200
+    ConstraintDescription: Please choose a valid Number
+    AllowedValues: [200, 300, 400, 500]
+  IOPS:
+    Description: total ipos
+    Type: Number
+    Default: 100
+    ConstraintDescription: Please choose a valid Number
+    AllowedValues: [100, 200, 500, 1000]
+
+Resources:
+  EC2YBNode1:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref SSHKeyName
+      Tags:
+        - Key: "Name"
+          Value: "marquette-yb3node-1"
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          SubnetId: !Ref SubnetId
+          GroupSet:
+            - !Ref DemoSecurityGroup
+      BlockDeviceMappings:
+        -
+          DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: io1
+            Iops: !Ref IOPS
+            DeleteOnTermination: false
+            VolumeSize: !Ref VolumeSize
+      UserData:
+        Fn::Base64:
+          !Sub |
+          #!/bin/bash -xe
+          sudo chmod 777 /etc/security/limits.conf
+          sudo printf "*                -       data            unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       fsize           unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       sigpending      119934 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       memlock         64 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       rss             unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       nofile          1048576 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       msgqueue        819200 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       stack           8192 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       cpu             unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       nproc           12000 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       locks           unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo chmod 755 /etc/security/limits.conf
+          sudo yum install -y python3
+          sudo yum groupinstall -y "Development Tools" && sudo yum install gcc openssl-devel bzip2-devel libffi-devel -y
+          echo "alias python=/usr/bin/python3" >> /home/centos/.bashrc
+          echo "alias python=/usr/bin/python3" >> /home/centos/bash_profile
+          echo "YB_HOME=/home/centos/bin/yugabyte-2.7.1.1" >> /home/centos/.bashrc
+          echo "YB_HOME=/home/centos/bin/yugabyte-2.7.1.1" >> /home/centos/bash_profile
+          sudo yum install -y wget
+          mkdir /home/centos/bin
+          cd /home/centos/bin
+          wget https://downloads.yugabyte.com/yugabyte-2.7.1.1-linux.tar.gz
+          tar xvfz yugabyte-2.7.1.1-linux.tar.gz && cd yugabyte-2.7.1.1/
+          /home/centos/bin/yugabyte-2.7.1.1/bin/post_install.sh
+          sudo yum install postgresql-libs -y
+          mkdir /home/centos/disk1
+          mkdir /home/centos/disk2
+          cd /home/centos
+          sudo chown -R centos:centos /home/centos/*
+
+  EC2YBNode2:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref SSHKeyName
+      Tags:
+        - Key: "Name"
+          Value: "marquette-yb3node-2"
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          SubnetId: !Ref SubnetIdNodes
+          GroupSet:
+            - !Ref DemoSecurityGroup
+      BlockDeviceMappings:
+        -
+          DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: io1
+            Iops: !Ref IOPS
+            DeleteOnTermination: false
+            VolumeSize: !Ref VolumeSize
+      UserData:
+        Fn::Base64:
+          !Sub |
+          #!/bin/bash -xe
+          sudo chmod 777 /etc/security/limits.conf
+          sudo printf "*                -       data            unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       fsize           unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       sigpending      119934 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       memlock         64 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       rss             unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       nofile          1048576 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       msgqueue        819200 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       stack           8192 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       cpu             unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       nproc           12000 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       locks           unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo chmod 755 /etc/security/limits.conf
+          sudo yum install -y python3
+          sudo yum groupinstall -y "Development Tools" && sudo yum install gcc openssl-devel bzip2-devel libffi-devel -y
+          echo "alias python=/usr/bin/python3" >> /home/centos/.bashrc
+          echo "alias python=/usr/bin/python3" >> /home/centos/bash_profile
+          echo "YB_HOME=/home/centos/bin/yugabyte-2.7.1.1" >> /home/centos/.bashrc
+          echo "YB_HOME=/home/centos/bin/yugabyte-2.7.1.1" >> /home/centos/bash_profile
+          sudo yum install -y wget
+          mkdir /home/centos/bin
+          cd /home/centos/bin
+          wget https://downloads.yugabyte.com/yugabyte-2.7.1.1-linux.tar.gz
+          tar xvfz yugabyte-2.7.1.1-linux.tar.gz && cd yugabyte-2.7.1.1/
+          /home/centos/bin/yugabyte-2.7.1.1/bin/post_install.sh
+          sudo yum install postgresql-libs -y
+          mkdir /home/centos/disk1
+          mkdir /home/centos/disk2
+          cd /home/centos
+          sudo chown -R centos:centos /home/centos/*
+
+  EC2YBNode3:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref SSHKeyName
+      Tags:
+        - Key: "Name"
+          Value: "marquette-yb3node-3"
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          SubnetId: !Ref SubnetIdNodes
+          GroupSet:
+            - !Ref DemoSecurityGroup
+      BlockDeviceMappings:
+        -
+          DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: io1
+            Iops: !Ref IOPS
+            DeleteOnTermination: false
+            VolumeSize: !Ref VolumeSize
+      UserData:
+        Fn::Base64:
+          !Sub |
+          #!/bin/bash -xe
+          sudo chmod 777 /etc/security/limits.conf
+          sudo printf "*                -       data            unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       fsize           unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       sigpending      119934 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       memlock         64 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       rss             unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       nofile          1048576 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       msgqueue        819200 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       stack           8192 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       cpu             unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       nproc           12000 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       locks           unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo chmod 755 /etc/security/limits.conf
+          sudo yum install -y python3
+          sudo yum groupinstall -y "Development Tools" && sudo yum install gcc openssl-devel bzip2-devel libffi-devel -y
+          echo "alias python=/usr/bin/python3" >> /home/centos/.bashrc
+          echo "alias python=/usr/bin/python3" >> /home/centos/bash_profile
+          echo "YB_HOME=/home/centos/bin/yugabyte-2.7.1.1" >> /home/centos/.bashrc
+          echo "YB_HOME=/home/centos/bin/yugabyte-2.7.1.1" >> /home/centos/bash_profile
+          sudo yum install -y wget
+          mkdir /home/centos/bin
+          cd /home/centos/bin
+          wget https://downloads.yugabyte.com/yugabyte-2.7.1.1-linux.tar.gz
+          tar xvfz yugabyte-2.7.1.1-linux.tar.gz && cd yugabyte-2.7.1.1/
+          /home/centos/bin/yugabyte-2.7.1.1/bin/post_install.sh
+          sudo yum install postgresql-libs -y
+          mkdir /home/centos/disk1
+          mkdir /home/centos/disk2
+          cd /home/centos
+          sudo chown -R centos:centos /home/centos/*
+
+  DemoSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref VpcId
+      GroupDescription: SG to allow SSH access via port 22
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: 8
+          ToPort: 64000
+          CidrIp: !Ref PublicSubnet1CIDR
+        - IpProtocol: icmp
+          FromPort: 8
+          ToPort: -1
+          CidrIp: !Ref PublicSubnet1CIDR
+        - IpProtocol: tcp
+          FromPort: 8
+          ToPort: 64000
+          CidrIp: !Ref PrivateSubnet1CIDR
+        - IpProtocol: icmp
+          FromPort: 8
+          ToPort: -1
+          CidrIp: !Ref PrivateSubnet1CIDR
+        - IpProtocol: tcp
+          FromPort: 9100
+          ToPort: 9100
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 7700
+          ToPort: 7700
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: SSH-SG

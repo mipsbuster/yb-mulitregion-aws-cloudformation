@@ -1,0 +1,635 @@
+---
+##
+##  You will be
+## billed for the AWS resources used if you create a stack from this template.
+##
+##
+## Dependencies:
+## none
+##This is a sample file and not intended for Production usage
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Core demo infrastrucutures
+
+
+Metadata:
+  LICENSE: Apache License Version 2.0
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Network Configuration
+      Parameters:
+      - vpcCidr
+      - subPub1Cidr
+      - subPub2Cidr
+      - subPrv1Cidr
+      - subPrv2Cidr
+      - subPrv3Cidr
+    - Label:
+        default: Bastion host configuration
+      Parameters:
+      - ec2KeyPair
+      - BastionHostAmiId
+      - BastionInstanceClass
+    - Label:
+        default: Database Configuration
+      Parameters:
+      - DBInstanceClass
+      - DBEngineVersion
+    ParameterLabels:
+      vpcCidr:
+        default: VPC CIDR Block
+      subPub1Cidr:
+        default: Public Subnet 1 CIDR Block
+      subPub2Cidr:
+        default: Public Subnet 2 CIDR Block
+      subPrv1Cidr:
+        default: Private Subnet 1 CIDR Block
+      subPrv2Cidr:
+        default: Private Subnet 2 CIDR Block
+      subPrv3Cidr:
+        default: Private Subnet 3 CIDR Block
+      ec2KeyPair:
+        default: EC2 Key Pair
+      BastionHostAmiId:
+        default: AMI ID for Bastion Host
+      BastionInstanceClass:
+        default: Instance Class for Bastion Host
+      DBInstanceClass:
+        default: DB Instance Class
+      DBEngineVersion:
+        default: Database Engine Version
+
+
+
+
+## Parameters
+Parameters:
+  vpcCidr:
+    Description: VPC CIDR Block
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.1.0.0/16
+    Type: String
+
+  subPub1Cidr:
+    Description: CIDR Block for public subnet in AZ-1
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.1.0.0/24
+    Type: String
+
+  subPub2Cidr:
+    Description: CIDR Block for public subnet in AZ-2
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.1.1.0/24
+    Type: String
+
+  subPrv1Cidr:
+    Description: CIDR Block for private subnet in AZ-1
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.1.10.0/24
+    Type: String
+
+  subPrv2Cidr:
+    Description: CIDR Block for private subnet in AZ-2
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.1.11.0/24
+    Type: String
+
+  subPrv3Cidr:
+    Description: CIDR Block for private subnet in AZ-3
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.1.12.0/24
+    Type: String
+
+  ec2KeyPair:
+    Default: "ee-default-keypair"
+    ConstraintDescription: "Name of an existing EC2 key pair."
+    MinLength: 1
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 key pair for accessing bastion host. If you don't have a Keypair in this region then create one before using this template.
+
+  BastionHostAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+
+  BastionInstanceClass:
+    Default: r5.2xlarge
+    Description: Instance Class for Bastion Host.
+    Type: String
+    AllowedValues:
+    - t3.medium
+    - t3.large
+    - r5.xlarge
+    - r5.2xlarge
+
+  DBInstanceClass:
+    Default: db.r5.2xlarge
+    Description: Database Instance Class. db.r5 instance classes are supported for yb PostgreSQL 10.6 or later. db.t3.medium instance class is supported for yb PostgreSQL 10.7 or later.
+    Type: String
+    AllowedValues:
+    - db.t3.large
+    - db.r5.xlarge
+    - db.r5.2xlarge
+    - db.r5.4xlarge
+
+
+  DBEngineVersion:
+    Description: Select Database Engine Version
+    Type: String
+    Default: 12.4
+    AllowedValues:
+      - 10.13
+      - 10.14
+      - 11.8
+      - 11.9
+      - 12.4
+
+## Mappings
+Mappings:
+  DBFamilyMap:
+    "10.11":
+      "family": "aurora-postgresql10"
+    "10.12":
+      "family": "aurora-postgresql10"
+    "10.13":
+      "family": "aurora-postgresql10"
+    "11.6":
+      "family": "aurora-postgresql11"
+    "11.7":
+      "family": "aurora-postgresql11"
+    "11.8":
+      "family": "aurora-postgresql11"
+    "12.4":
+      "family": "aurora-postgresql12"
+
+## Resources
+Resources:
+## Create a new parameter group to be used for yb PostgreSQL (for cluster and instance)
+  RDSDBClusterParameterGroup:
+    Type: AWS::RDS::DBClusterParameterGroup
+    Properties:
+      Description: !Sub DB Cluster Parameter Group for ${AWS::StackName}
+      Family: !FindInMap [DBFamilyMap, !Ref DBEngineVersion, "family"]
+      Parameters:
+        rds.force_ssl: 0
+        rds.force_autovacuum_logging_level: "info"
+        log_autovacuum_min_duration: 10000
+
+
+  DBParamGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: !Sub DB Parameter Group for ${AWS::StackName}
+      Family: !FindInMap [DBFamilyMap, !Ref DBEngineVersion, "family"]
+      Parameters:
+        shared_preload_libraries: auto_explain,pg_stat_statements,pg_hint_plan,pgaudit
+        log_statement: "ddl"
+        log_temp_files: 10240
+        log_lock_waits: 1
+        log_min_duration_statement: 60000
+        auto_explain.log_min_duration: 300000
+        auto_explain.log_verbose: 1
+        pg_stat_statements.track: "TOP"
+        log_rotation_age: 1440
+        log_rotation_size: 102400
+        rds.log_retention_period: 10080
+        random_page_cost: 1
+        track_activity_query_size: 16384
+        track_io_timing: 1
+        idle_in_transaction_session_timeout: 7200000
+        statement_timeout: 7200000
+        search_path: '"$user",public'
+
+## Create a new KMS Key to be used for encrypting DB and PI
+  ybKMSCMK:
+    Type: 'AWS::KMS::Key'
+    DeletionPolicy: Delete
+    Properties:
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+          Action: 'kms:*'
+          Resource: '*'
+        - Effect: Allow
+          Principal:
+            AWS: '*'
+          Action:
+          - 'kms:Encrypt'
+          - 'kms:Decrypt'
+          - 'kms:ReEncrypt*'
+          - 'kms:GenerateDataKey*'
+          - 'kms:CreateGrant'
+          - 'kms:ListGrants'
+          - 'kms:DescribeKey'
+          Resource: '*'
+          Condition:
+            StringEquals:
+              'kms:CallerAccount': !Ref 'AWS::AccountId'
+              'kms:ViaService': !Sub 'rds.${AWS::Region}.amazonaws.com'
+
+## Create a new KMS Key to be used for encrypting DB and PI
+  SecretsMgrKMSCMK:
+    Type: 'AWS::KMS::Key'
+    DeletionPolicy: Delete
+    Properties:
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+          Action: 'kms:*'
+          Resource: '*'
+        - Effect: Allow
+          Principal:
+            AWS: '*'
+          Action:
+          - 'kms:Encrypt'
+          - 'kms:Decrypt'
+          - 'kms:ReEncrypt*'
+          - 'kms:GenerateDataKey*'
+          - 'kms:CreateGrant'
+          - 'kms:ListGrants'
+          - 'kms:DescribeKey'
+          Resource: '*'
+          Condition:
+            StringEquals:
+              'kms:CallerAccount': !Ref 'AWS::AccountId'
+              'kms:ViaService': !Sub 'secretsmanager.${AWS::Region}.amazonaws.com'
+        - Effect: Allow
+          Principal:
+            AWS: '*'
+          Action:
+          - 'kms:Decrypt'
+          - 'kms:DescribeKey'
+          Resource: '*'
+          Condition:
+            StringEquals:
+              'kms:CallerAccount': !Ref 'AWS::AccountId'
+              'kms:ViaService': !Sub 'ec2.${AWS::Region}.amazonaws.com'
+        - Effect: Allow
+          Principal:
+            AWS: '*'
+          Action:
+          - 'kms:Decrypt'
+          - 'kms:DescribeKey'
+          Resource: '*'
+          Condition:
+            StringEquals:
+              'kms:CallerAccount': !Ref 'AWS::AccountId'
+              'kms:ViaService': !Sub 'ssm.${AWS::Region}.amazonaws.com'
+
+## The VPC
+  vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      CidrBlock: !Ref vpcCidr
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-vpc
+## Create an IGW & attach it to the VPC
+  vpcIgw:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-igw
+  attachIgwVpc:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref vpc
+      InternetGatewayId: !Ref vpcIgw
+
+## Create a public subnet in each AZ
+  sub1Public:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref vpc
+      CidrBlock: !Ref subPub1Cidr
+      AvailabilityZone: !Select [0, !GetAZs ]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-pub-sub-1
+  sub2Public:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref vpc
+      CidrBlock: !Ref subPub2Cidr
+      AvailabilityZone: !Select [1, !GetAZs ]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-pub-sub-2
+
+## Associate the public subnets with a public route table
+  rtbPublic:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-public-rtb
+  rteToIgw:
+    Type: AWS::EC2::Route
+    DependsOn: attachIgwVpc
+    Properties:
+      RouteTableId: !Ref rtbPublic
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref vpcIgw
+  srta1Public:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref sub1Public
+      RouteTableId: !Ref rtbPublic
+  srta2Public:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref sub2Public
+      RouteTableId: !Ref rtbPublic
+
+## Create a private subnet in each AZ
+  sub1Private:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref vpc
+      CidrBlock: !Ref subPrv1Cidr
+      AvailabilityZone: !Select [0, !GetAZs ]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-prv-sub-1
+  sub2Private:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref vpc
+      CidrBlock: !Ref subPrv2Cidr
+      AvailabilityZone: !Select [1, !GetAZs ]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-prv-sub-2
+  sub3Private:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref vpc
+      CidrBlock: !Ref subPrv3Cidr
+      AvailabilityZone: !Select [2, !GetAZs ]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-prv-sub-3
+
+## Create a NAT Gateway & EIP
+  natEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  vpcNgw:
+    Type: AWS::EC2::NatGateway
+    DependsOn: attachIgwVpc
+    Properties:
+      AllocationId: !GetAtt natEip.AllocationId
+      SubnetId: !Ref sub2Public
+
+## Associate the private subnets with a NATed route table
+  rtbNat:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-nat-rtb
+  rteToNgw:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref rtbNat
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref vpcNgw
+  srta1Ngw:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref sub1Private
+      RouteTableId: !Ref rtbNat
+  srta2Ngw:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref sub2Private
+      RouteTableId: !Ref rtbNat
+  srta3Ngw:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref sub3Private
+      RouteTableId: !Ref rtbNat
+
+## Create DB subnet group
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub ${AWS::StackName}-db-subnet-group
+      SubnetIds: [ !Ref sub1Private, !Ref sub2Private, !Ref sub3Private ]
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-db-subnet-group
+
+## Create bastion security group
+  bastionSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref vpc
+      GroupName: !Sub ${AWS::StackName}-bastion-host
+      GroupDescription: PG Training SSH Security Group
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-bastion-host
+      SecurityGroupIngress:
+              IpProtocol: tcp
+              FromPort: '22'
+              ToPort: '22'
+              CidrIp: 0.0.0.0/0
+
+## Create DB security group
+  dbSecGroupCluster:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref vpc
+      GroupName: !Sub ${AWS::StackName}-PostgreSQL-internal
+      GroupDescription: PG Training Database Firewall
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-PostgreSQL-internal
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref bastionSecGroup
+          Description: Allows PostgreSQL access from bastion host
+
+## Create enhanced monitoring role
+  roleEnhancedMonitoring:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-monitor-${AWS::Region}
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - monitoring.rds.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
+
+## Create role for bastion host
+  roleBastionHost:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-bastion-${AWS::Region}
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'sts:AssumeRole'
+            Principal:
+              Service:
+                - 'ec2.amazonaws.com'
+                - 'ssm.amazonaws.com'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM'
+      Policies:
+        - PolicyName: inline-rds-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds:DescribeDBClusters
+                  - rds:DescribeDBInstances
+                  - rds:DescribeDBClusterParameterGroups
+                  - rds:DescribeDBClusterParameters
+                  - rds:DescribeDBParameterGroups
+                  - rds:DescribeDBParameters
+                  - rds:DownloadDBLogFilePortion
+                  - rds:PromoteReadReplica
+                  - rds:RebootDBInstance
+                  - rds:StartActivityStream
+                  - rds:StopActivityStream
+                  - rds:DescribeDBClusterEndpoints
+        - PolicyName: inline-ssm-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:*
+                Resource: "*"
+        - PolicyName: inline-kms-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt SecretsMgrKMSCMK.Arn
+        - PolicyName: inline-secretsmgr-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref secretAdminUser
+  profileBastionHost:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - Ref: roleBastionHost
+
+## Create the bastion host
+  bastionHost:
+    Type: AWS::EC2::Instance
+    Properties:
+      SubnetId: !Ref sub1Public
+      InstanceType: !Ref BastionInstanceClass
+      SecurityGroupIds: [ !Ref bastionSecGroup ]
+      KeyName: !Ref ec2KeyPair
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-pgtraining-bastion-host
+      ImageId: !Ref BastionHostAmiId
+      IamInstanceProfile: !Ref profileBastionHost
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          cd /etc/yum.repos.d
+          echo "[pgdg13]
+          name=PostgreSQL 13 for RHEL/CentOS 7 - x86_64
+          baseurl=https://download.postgresql.org/pub/repos/yum/13/redhat/rhel-7-x86_64
+          enabled=1
+          gpgcheck=0
+          gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-PGDG-13
+          " > pgdg.repo
+          sudo yum -y makecache
+          yum -y install postgresql13 pspg jq postgresql13-contrib unzip
+          sudo systemctl enable amazon-ssm-agent
+          sudo systemctl start amazon-ssm-agent
+          yum -y update
+          pip install --upgrade pip
+          pip install awscli --upgrade --user
+
+          echo "
+          #!/bin/sh
+          cat << EOF
+             ____  ______  ___
+            /    )/      \\\\/   \\\\
+           (     / __    _\    )
+            \    (/ o)  ( o)   )
+             \_  (_  )   \ )  /
+               \  /\_/    \)_/
+                \/  //|  |\\\\\\\\
+                    v |  | v
+                      \__/
+
+          EOF
+          " >> /etc/update-motd.d/90-postgresql
+
+## Create a random generated password and store it as a secret
+  secretAdminUser:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: !Sub "Admin user credentials for ${AWS::StackName}-cluster"
+      KmsKeyId: !Ref SecretsMgrKMSCMK
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "adminuser"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 10
+        ExcludeCharacters: '"@/\$`&:'
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-secret
+
+## Outputs
+Outputs:
+  secretArn:
+    Description: Database Credentials Secret ARN
+    Value: !Ref secretAdminUser
+  BastionSSHCommand:
+    Description: The ssh command to connect to the bastion host
+    Value: !Join ['', ['ssh -i "', !Ref ec2KeyPair, '.pem" ec2-user@', !GetAtt bastionHost.PublicDnsName]]

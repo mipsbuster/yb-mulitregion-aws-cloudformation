@@ -1,0 +1,367 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "base build creates VPC and public and private subnets"
+
+Parameters:
+  VpcName:
+    Default: "marquette-demo-3node"
+    Description: "Enter VPC Name"
+    Type: String
+
+  VpcCIDR:
+    Default: 10.0.0.0/16
+    Description: "Enter IP range for this vpc"
+    Type: String
+
+  PublicSubnet1Name:
+    Default: "marquette-demo-3node-PublicSubnet1"
+    Description: "Enter VPC Name"
+    Type: String
+
+  PublicSubnet1CIDR:
+    Default: 10.0.0.0/24
+    Description: "Enter IP range for this public subnet 1"
+    Type: String
+
+  PublicSubnet2Name:
+    Default: "marquette-demo-3node-PublicSubnet2"
+    Description: "Enter VPC Name"
+    Type: String
+
+  PublicSubnet2CIDR:
+    Default: 10.0.1.0/24
+    Description: "Enter IP range for this public subnet 2"
+    Type: String
+
+  PrivateSubnet1Name:
+    Default: "marquette-demo-3node-PrivateSubnet1"
+    Description: "Enter VPC Name"
+    Type: String
+
+  PrivateSubnet1CIDR:
+    Default: 10.0.2.0/24
+    Description: "Enter IP range for this private subnet 1"
+    Type: String
+
+  PrivateSubnet2Name:
+    Default: "marquette-demo-3node-PrivateSubnet2"
+    Description: "Enter VPC Name"
+    Type: String
+
+  PrivateSubnet2CIDR:
+    Default: 10.0.3.0/24
+    Description: "Enter IP range for this private subnet 2"
+    Type: String
+
+  PrivateSubnet3Name:
+    Default: "marquette-demo-3node-PrivateSubnet3"
+    Description: "Enter VPC Name"
+    Type: String
+
+  PrivateSubnet3CIDR:
+    Default: 10.0.4.0/24
+    Description: "Enter IP range for this private subnet 3"
+    Type: String
+
+  SSHLocation:
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 0.0.0.0/0
+    Description: The IP address range that can be used to access the web server using SSH.
+    MaxLength: '18'
+    MinLength: '9'
+    Type: String
+
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: c5.large
+    AllowedValues: [c5.large, t2.micro, t2.small, t2.medium, t2.large, m3.medium, m3.large,
+      m3.xlarge, m3.2xlarge, m4.large, m4.xlarge, m4.2xlarge, m4.4xlarge, m4.10xlarge,
+      c4.large, c4.xlarge, c4.2xlarge, c4.4xlarge, c4.8xlarge, c3.large, c3.xlarge,
+      c3.2xlarge, c3.4xlarge, c3.8xlarge, r3.large, r3.xlarge, r3.2xlarge, r3.4xlarge,
+      r3.8xlarge, i2.xlarge, i2.2xlarge, i2.4xlarge, i2.8xlarge]
+    ConstraintDescription: Please choose a valid instance type.
+
+  SSHKeyName:
+    Description: EC2 instance type
+    Type: String
+    ConstraintDescription: Please choose a valid KeyName
+
+  VolumeSize:
+    Description: size of volume
+    Type: Number
+    Default: 200
+    ConstraintDescription: Please choose a valid Number
+    AllowedValues: [200, 300, 400, 500]
+
+  IOPS:
+    Description: total ipos
+    Type: Number
+    Default: 100
+    ConstraintDescription: Please choose a valid Number
+    AllowedValues: [100, 200, 500, 1000]
+
+  ImageId:
+    Type: String
+    Description: 'value for region. If you using other version please choose right'
+    Default: 'ami-e0eac385'
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsHostnames: True
+      EnableDnsSupport: True
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Ref VpcName
+
+# Create internet gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: marquette-manualInstall-3node-IGW
+
+# Create Attachment
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+# Create Public Subnet1
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: True
+      Tags:
+        - Key: Name
+          Value: !Ref PublicSubnet1Name
+      VpcId: !Ref VPC
+
+# Create Public Subnet2
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet2CIDR
+      MapPublicIpOnLaunch: True
+      Tags:
+        - Key: Name
+          Value: !Ref PublicSubnet2Name
+      VpcId: !Ref VPC
+
+# Create Route Table
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: marquette-manualInstall-3node-PublicRoute
+      VpcId: !Ref VPC
+
+# Add a Public Route to the Route Table
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTable
+
+# Associate Public Subnet1 with Public Route Table
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+# Associate Public Subnet2 with Public Route Table
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+# Create Private Subnet1
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: False
+      Tags:
+        - Key: Name
+          Value: !Ref PrivateSubnet1Name
+      VpcId: !Ref VPC
+
+# Create Private Subnet2
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      MapPublicIpOnLaunch: False
+      Tags:
+        - Key: Name
+          Value: !Ref PrivateSubnet2Name
+      VpcId: !Ref VPC
+
+# Create Private Subnet3
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref PrivateSubnet3CIDR
+      MapPublicIpOnLaunch: False
+      Tags:
+        - Key: Name
+          Value: !Ref PrivateSubnet3Name
+      VpcId: !Ref VPC
+
+# Create Security Group for the Application Load Balancer
+  ALBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable HTTP/HTTPS on ports 80/443/8080
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: marquette-manualInstall-ALBsg
+      VpcId: !Ref VPC
+
+# Create Security Group for the Bastion Host aka Jump Box
+  SSHSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: SSH sg
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHLocation
+      Tags:
+        - Key: Name
+          Value: marquette-manualInstall-sshsg
+      VpcId: !Ref VPC
+
+# Create Security Group for the Bastion Host aka Jump Box
+  YPSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: SSH sg
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHLocation
+        - IpProtocol: tcp
+          FromPort: 8800
+          ToPort: 8800
+          CidrIp: !Ref SSHLocation
+      Tags:
+        - Key: Name
+          Value: marquette-manualInstall-sshsg
+      VpcId: !Ref VPC
+
+# Create Security Group for the Web Server
+  WebServerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: web server sg
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref SSHSecurityGroup
+      Tags:
+        - Key: Name
+          Value: marquette-manualInstall-webserversg
+      VpcId: !Ref VPC
+
+# Create Security Group for the DataBase
+  DataBaseSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Database place holder
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref WebServerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: marquette-manualInstall-databasesg
+      VpcId: !Ref VPC
+
+  EC2YBNode1:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroupIds:
+        - !Ref YPSecurityGroup
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref SSHKeyName
+      BlockDeviceMappings:
+        -
+          DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: io1
+            Iops: !Ref IOPS
+            DeleteOnTermination: false
+            VolumeSize: !Ref VolumeSize
+      UserData:
+        Fn::Base64:
+          !Sub |
+          #!/bin/bash -xe
+          sudo chmod 777 /etc/security/limits.conf
+          sudo printf "*                -       data            unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       fsize           unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       sigpending      119934 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       memlock         64 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       rss             unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       nofile          1048576 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       msgqueue        819200 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       stack           8192 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       cpu             unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       nproc           12000 %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo printf "*                -       locks           unlimited %s\n" "$newtext" >> /etc/security/limits.conf
+          sudo chmod 755 /etc/security/limits.conf
+          sudo yum install -y python3
+          sudo yum groupinstall -y "Development Tools" && yum install gcc openssl-devel bzip2-devel libffi-devel -y
+          echo "alias python=/usr/bin/python3" >> /home/centos/.bashrc
+          echo "alias python=/usr/bin/python3" >> /home/centos/bash_profile
+          sudo yum install -y wget
+          mkdir /home/centos/bin
+          cd /home/centos/bin
+          curl -sSL https://get.replicated.com/docker | sudo bash -s fast-timeouts public-address ui-bind-port=8800
+          sudo systemctl restart replicated replicated-ui replicated-operator
+

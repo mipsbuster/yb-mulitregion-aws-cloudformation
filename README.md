@@ -1,4 +1,4 @@
-# How to examples deploy mulit-region YugabyteDB with Amazon Cloudformation
+# How to examples deploy multi-region YugabyteDB with Amazon Cloudformation
 
 ![mapWithPins](./resources/mapWithPins.png)
 
