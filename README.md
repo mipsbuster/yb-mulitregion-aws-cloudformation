@@ -1,1 +1,2 @@
-# yb-mulitregion-aws-cloudformation
+# How to examples deploy YugabyteDB with Amazon Cloudformation
+
