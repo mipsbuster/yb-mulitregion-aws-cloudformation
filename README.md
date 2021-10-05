@@ -1,2 +1,2 @@
-# How to examples deploy YugabyteDB with Amazon Cloudformation
+# How to examples deploy mulit-region YugabyteDB with Amazon Cloudformation
 
