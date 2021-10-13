@@ -59,3 +59,11 @@ Follow is an outline of the steps required to first create the AWS infrastructur
 |      | 10. Setup VPC peering between regions                       |          |
 
 Deploying YB Platform is part of the Cloudformation EC2 build. The steps for the required tools and database are part of the EC2 build
+
+*(need lot of work here to make this automated and parameters for CIDR blocks and other user input)*
+
+First steps are to run **vpc_base.yml** creating the core 2 region cluster
+
+first example is deploy the server node in manual mode for 3 nodes in each region. A total of 6 nodes. scripts needs to be expanded to include region 3
+
+Second example deploy platform then deploy a multi-region cluster using the config in platform

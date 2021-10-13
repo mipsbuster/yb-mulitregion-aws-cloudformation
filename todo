@@ -1,0 +1,5 @@
+cloudformation create automated vpc peering
+remove hard coded CIDR blocks for public and private subnets
+remove other hard coded items
+add region 3
+cleanup all the duplicate code and testing of examples
