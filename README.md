@@ -16,7 +16,7 @@ Modern mission critical applications require 24/7 availability, rolling upgrades
 
 Diagram below is a conceptual Active-Active architecture. 
 
-![srm-active-active-arch](./resources/srm-active-active-arch.png)
+![ActiveActiveDiagram.drawio](./resources/ActiveActiveDiagram.drawio.png)
 
 YugabyteDB is one of the only commercial vendors providing a true Active-Active architectuer using the YB strech architecure. one YB cluster can be deployed over 2 or more regions and even streched accross 2 or more cloud vendors in addition with on-prem support. 
 
