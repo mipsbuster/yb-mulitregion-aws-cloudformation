@@ -4,6 +4,8 @@
 
 This post is an example of the techniques and examples of using AWS Cloudformation in automated deployment of multi-region Yugabyte clusters. Install process is complex and error prone if done by hand and/or combimation of scripts. Post highlights the advantages of YugabyteDB and the high level steps required in setting up the AWS infrastructures to support multi-region clusters. 
 
+Scripts and steps in this post are first steps and required foundational steps for the post on Yugabyte row level geo-partitioning
+
 ## Yugabyte
 
 [Yugabyte Platform](https://yugabyteweb.wpengine.com/yugabytedb/) gives you the simplicity and support to deliver a private database-as-a-service (DBaaS) at scale. Use Yugabyte Platform to deploy YugabyteDB across any cloud anywhere in the world with a few clicks, simplify day 2 operations through automation, and get the services needed to realize business outcomes with the database. 
@@ -67,3 +69,13 @@ First steps are to run **vpc_base.yml** creating the core 2 region cluster
 first example is deploy the server node in manual mode for 3 nodes in each region. A total of 6 nodes. scripts needs to be expanded to include region 3
 
 Second example deploy platform then deploy a multi-region cluster using the config in platform
+
+## Validation
+
+validation steps for Cloudformation templates
+
+- ping hosts in different regions
+- ssh to other nodes
+- run yb-admin for info 
+
+## Summary
